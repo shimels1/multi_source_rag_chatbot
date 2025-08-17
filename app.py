@@ -11,15 +11,11 @@ import streamlit as st
 from langchain.chains import ConversationalRetrievalChain
 import logging
 
-# ============================
 # Setup logging
-# ============================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============================
 # Load environment variables
-# ============================
 load_dotenv()
 logger.info("Environment variables loaded.")
 
@@ -48,9 +44,7 @@ logger.info(f"{len(chunks)} chunks created from documents.")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 logger.info("Embeddings initialized.")
 
-# ----------------------------
-# FAISS index (no saving/loading)
-# ----------------------------
+# FAISS index
 vectorstore = FAISS.from_documents(chunks, embeddings)
 logger.info("FAISS index created in memory.")
 
