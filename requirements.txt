@@ -7,3 +7,7 @@ python-dotenv
 sentence-transformers
 streamlit
 langchain-core
+fastapi
+uvicorn
+langchain-unstructured
+unstructured
