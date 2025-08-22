@@ -3,3 +3,6 @@
 
 # Ignore environment variables file
 .env
+
+# Ignore Python __pycache__ file
+__pycache__
