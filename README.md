@@ -115,3 +115,9 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 ## Contact
 
 For questions or support, reach out to Shimels Alem via the GitHub repository: [https://github.com/shimels1/multi_source_rag_chatbot](https://github.com/shimels1/multi_source_rag_chatbot).
+
+## Support
+
+If you find this project useful, please give it a ⭐ on [GitHub](https://github.com/shimels1/multi_source_rag_chatbot)!  
+Your support helps others discover the project and keeps development going.
+
