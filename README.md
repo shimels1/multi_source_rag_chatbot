@@ -1,102 +1,88 @@
 # Multi-Source RAG Chatbot
 
-A **conversational AI assistant** built with Streamlit, LangChain, FAISS, and Groq LLM (Llama 3) that answers questions based on document context.
-
----
+A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM (Llama 3) that answers questions based on document context, featuring a modern web interface.
 
 ## Features
 
-- Conversational AI with memory for context-aware responses.
-- Retrieves answers from uploaded documents using **RAG (Retrieval-Augmented Generation)**.
-- Embeddings created with `sentence-transformers/all-MiniLM-L6-v2`.
-- Modern, responsive chat interface in Streamlit.
-- Typing indicator and user/assistant message bubbles for enhanced UX.
-- No persistent FAISS storage; all embeddings are in-memory for simplicity.
-
----
-
-## Technologies
-
-- Python 3.10+
-- [Streamlit](https://streamlit.io/)
-- [LangChain](https://www.langchain.com/)
-- [Groq LLM](https://groq.com/)
-- [FAISS](https://github.com/facebookresearch/faiss)
-- [HuggingFace Embeddings](https://huggingface.co/sentence-transformers)
-- [dotenv](https://pypi.org/project/python-dotenv/)
-
----
+- **Conversational AI with Memory**: Provides context-aware responses using `ConversationBufferWindowMemory`.
+- **Multi-Source RAG**: Retrieves answers from uploaded documents using Retrieval-Augmented Generation (RAG).
+- **Embeddings**: Utilizes `sentence-transformers/all-MiniLM-L6-v2` for high-quality text embeddings.
+- **Modern Web UI**: Features a responsive interface with Tailwind CSS, glassmorphism effects, and Font Awesome icons.
+- **Multi-Format Support**: Handles `.txt`, `.pdf`, `.docx`, `.doc`, `.pptx`, `.ppt`, `.xlsx`, `.xls`, `.eml`, `.msg`, `.rtf`, `.odt`, and `.html` files.
+- **In-Memory FAISS**: Stores embeddings in memory for simplicity (data is lost on server restart).
+- **File Management**: Supports file uploads and downloads via API endpoints.
+- **No Hallucination**: Answers are based solely on document context; returns "I lack sufficient information to answer that" otherwise.
 
 ## Setup
 
-1. **Clone the repository:**
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/shimels1/multi_source_rag_chatbot.git
+   cd multi_source_rag_chatbot
+   ```
 
-```bash
-git clone https://github.com/shimels1/multi_source_rag_chatbot.git
-cd multi_source_rag_chatbot
-```
+2. **Install Dependencies**:
+   Ensure you have Python 3.9+ installed, then run:
+   ```bash
+   pip install -r requirements.txt
+   ```
+   For non-text file support (e.g., `.pdf`, `.docx`), install additional dependencies:
+   - **Ubuntu**: `sudo apt-get install tesseract-ocr poppler-utils`
+   - **Mac**: `brew install tesseract poppler`
 
-2. **Install dependencies:**
+3. **Environment Variables**:
+   Create a `.env` file in the root directory with the following:
+   ```
+   GROQ_API_KEY=<your_groq_api_key>
+   LANGCHAIN_API_KEY=<your_langchain_api_key>
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+   LANGCHAIN_PROJECT=RAG_QA_Project
+   ```
+   Obtain API keys from [Groq](https://console.groq.com/) and [LangChain](https://smith.langchain.com/).
 
-```bash
-pip install -r requirements.txt
-```
-
-3. **Environment variables (.env):**
-
-Create a `.env` file in the root directory:
-
-```env
-LANGCHAIN_API_KEY=<your_langchain_api_key>
-GROQ_API_KEY=<your_groq_api_key>
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
-LANGCHAIN_PROJECT=RAG_QA_Project
-```
-
-4. **Add your documents:**
-
-Place your text files in `data/data.txt` or update the path in the code.
-
----
+4. **Prepare Documents**:
+   Place your documents in the `data/` directory. Supported formats include `.txt`, `.pdf`, `.docx`, etc. The server will process these on startup (last updated: 10:16 AM EAT, Saturday, August 23, 2025).
 
 ## Usage
 
-Run the Streamlit app:
+1. **Run the FastAPI Server**:
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
 
-```bash
-streamlit run app.py
-```
+2. **Access the Web Interface**:
+   - Open your browser and navigate to `http://localhost:8000`.
+   - You’ll see a chat interface with sections for chatting, uploading files, and viewing files.
 
-- Type your questions in the chat box.
-- The AI responds using document context.
-- Memory keeps track of recent interactions.
+3. **Interact with the Chatbot**:
+   - Type questions in the chat box and press "Send".
+   - The AI responds based on uploaded document context.
+   - Memory tracks recent interactions for context.
 
----
+4. **Manage Files**:
+   - Use the "Upload" section to add new documents.
+   - View and download files in the "Files" section.
 
 ## Project Structure
 
 ```
-├── app.py                 # Main Streamlit app
-├── data/
-│   └── data.txt           # Document source
-├── requirements.txt       # Python dependencies
-└── README.md              # This file
+├── main.py                 # FastAPI backend with document processing and API endpoints
+├── index.html              # Modern web UI with Tailwind CSS and JavaScript
+├── data/                   # Directory for uploaded documents
+├── requirements.txt        # Python dependencies
+├── .env                    # Environment variables (not tracked by git)
+└── README.md               # This file
 ```
-
----
 
 ## Notes
 
-- The FAISS index is **in-memory**, so data is lost when the app stops.
-- The model only answers based on the provided document context; it will not hallucinate.
-- Adjust `chunk_size` and `chunk_overlap` in `RecursiveCharacterTextSplitter` for large documents.
-
----
+- **In-Memory Storage**: The FAISS index is in-memory, so embeddings are lost when the server stops. Restart the server after adding new documents.
+- **Document Processing**: Adjust `chunk_size` (1000) and `chunk_overlap` (500) in `main.py` for large documents.
+- **Error Handling**: If "QA system not ready" appears, check server logs for document processing issues and ensure files are in `data/`.
+- **Customization**: Modify the `PromptTemplate` in `main.py` to adjust the AI's tone or behavior.
 
 ## License
-
-This project is licensed under the MIT License. See the full license text below.
 
 ```
 MIT License
@@ -122,6 +108,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
----
+## Contributing
 
-**GitHub Repository:** [https://github.com/shimels1/multi_source_rag_chatbot](https://github.com/shimels1/multi_source_rag_chatbot)
+Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request with your changes.
+
+## Contact
+
+For questions or support, reach out to Shimels Alem via the GitHub repository: [https://github.com/shimels1/multi_source_rag_chatbot](https://github.com/shimels1/multi_source_rag_chatbot).
