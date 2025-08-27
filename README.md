@@ -75,13 +75,6 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 └── README.md               # This file
 ```
 
-## Notes
-
-- **In-Memory Storage**: The FAISS index is in-memory, so embeddings are lost when the server stops. Restart the server after adding new documents.
-- **Document Processing**: Adjust `chunk_size` (1000) and `chunk_overlap` (500) in `main.py` for large documents.
-- **Error Handling**: If "QA system not ready" appears, check server logs for document processing issues and ensure files are in `data/`.
-- **Customization**: Modify the `PromptTemplate` in `main.py` to adjust the AI's tone or behavior.
-
 ## License
 
 ```
