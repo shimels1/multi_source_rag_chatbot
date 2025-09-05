@@ -1,17 +1,19 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from pydantic import BaseModel
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.prompts import PromptTemplate
 from langchain.memory import ConversationBufferWindowMemory
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_unstructured import UnstructuredLoader
 import os
 import logging
 from dotenv import load_dotenv
+from langchain.schema import Document
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-logger.info("Environment variables loaded at %s", "08:45 PM EAT, Friday, August 22, 2025")
+logger.info("Environment variables loaded.")
 
 os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "true")
 os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
@@ -37,6 +39,50 @@ qa = None
 data_dir = os.path.abspath("data")
 os.makedirs(data_dir, exist_ok=True)
 logger.info("Data directory created/verified at: %s", data_dir)
+
+# Initialize LLM
+llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model_name="llama-3.3-70b-versatile",
+    temperature=0
+)
+logger.info("Groq LLM initialized.")
+
+# Initialize memory
+memory = ConversationBufferWindowMemory(
+    memory_key="chat_history",
+    return_messages=True,
+    k=7,
+    input_key="input",
+    output_key="answer"
+)
+
+# Query-rewrite prompt for history-aware retriever
+contextualize_q_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "Rewrite the user's latest question into a standalone query using the chat history. "
+     "Do not answer the question. Only rewrite it."),
+    MessagesPlaceholder("chat_history"),
+    ("human", "{input}")
+])
+
+# Answer prompt for the final response
+answer_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are a helpful and accurate conversational AI assistant. "
+     "Use the conversation history to recall previous interactions. "
+     "Answer questions based solely on the provided document context from multiple sources. "
+     "Do NOT make up information. "
+     "If the answer is not in the conversation history or document context, respond exactly: "
+     "'I lack sufficient information to answer that.'\n\n"
+     "Important: Synthesize information from all relevant sources in the context. "
+     "Answer concisely and accurately based only on the above."),
+    MessagesPlaceholder("chat_history"),
+    ("human",
+     "Document Context from multiple sources:\n{context}\n\n"
+     "User Question: {input}\n\n"
+     "Answer:")
+])
 
 # Function to process documents and update vectorstore
 def process_documents():
@@ -70,38 +116,48 @@ def process_documents():
         logger.info("Total %d documents loaded from %d files in data directory.", len(docs), file_count)
         
         if docs:
+            # Split each document individually to preserve metadata
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
                 chunk_overlap=500,
                 add_start_index=True
             )
-            chunks = splitter.split_documents(docs)
-            logger.info("%d chunks created from documents.", len(chunks))
-            
-            chunk_sources = {}
-            for chunk in chunks:
-                source = chunk.metadata.get("source", "unknown")
-                chunk_sources[source] = chunk_sources.get(source, 0) + 1
-            logger.info("Chunks per document: %s", chunk_sources)
-            
+            chunks = []
+            for doc in docs:
+                # Split each document and preserve its metadata
+                doc_chunks = splitter.split_documents([doc])
+                chunks.extend(doc_chunks)
+            logger.info("%d chunks created from %d documents.", len(chunks), len(docs))
+
             embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-            logger.info("Embeddings initialized.")
-            
             vectorstore = FAISS.from_documents(chunks, embeddings)
+
             logger.info("FAISS index created in memory.")
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-            logger.info("Retriever set up.")
             
-            qa = ConversationalRetrievalChain.from_llm(
+            retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+            logger.info("Base retriever set up.")
+            
+            # Build history-aware retriever
+            history_aware_retriever = create_history_aware_retriever(
                 llm=llm,
                 retriever=retriever,
-                chain_type="stuff",
-                memory=memory,
-                combine_docs_chain_kwargs={"prompt": prompt},
-                return_source_documents=True,
-                output_key="answer"
+                prompt=contextualize_q_prompt
             )
-            logger.info("ConversationalRetrievalChain reinitialized.")
+            logger.info("History-aware retriever created.")
+            
+            # Create document chain
+            doc_chain = create_stuff_documents_chain(
+                llm=llm,
+                prompt=answer_prompt
+            )
+            logger.info("Stuff documents chain created.")
+            
+            # Final RAG chain
+            qa = create_retrieval_chain(
+                history_aware_retriever,
+                doc_chain
+            )
+            logger.info("Retrieval chain initialized (history-aware RAG).")
         else:
             logger.warning("No documents loaded. Vectorstore not initialized.")
             vectorstore = None
@@ -112,40 +168,6 @@ def process_documents():
         vectorstore = None
         retriever = None
         qa = None
-
-# Initial document processing (moved to app startup)
-llm = ChatGroq(
-    api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama3-70b-8192",
-    temperature=0
-)
-logger.info("Groq LLM initialized.")
-
-memory = ConversationBufferWindowMemory(
-    memory_key="chat_history",
-    return_messages=True,
-    k=20,
-    input_key="question",
-    output_key="answer"
-)
-
-prompt = PromptTemplate(
-    template=(
-        "You are a helpful and accurate conversational AI assistant. "
-        "Use the conversation history to recall previous interactions. "
-        "Answer questions based solely on the provided document context from multiple sources. "
-        "Do NOT make up information. "
-        "If the answer is not in the conversation history or document context, respond exactly: "
-        "'I lack sufficient information to answer that.'\n\n"
-        "Conversation History:\n{chat_history}\n\n"
-        "Document Context from multiple sources:\n{context}\n\n"
-        "User Question: {question}\n\n"
-        "Important: Synthesize information from all relevant sources in the context. "
-        "Answer concisely and accurately based only on the above:"
-    ),
-    input_variables=["chat_history", "context", "question"]
-)
-logger.info("Prompt template initialized.")
 
 # FastAPI app
 app = FastAPI()
@@ -218,20 +240,32 @@ async def ask_question(request: AskRequest):
         )
     
     try:
-        result = qa.invoke({"question": request.question})
-        answer = result.get("answer", "I couldn't find an answer to that question.")
+        # Load chat history from memory
+        chat_vars = memory.load_memory_variables({})
+        chat_history = chat_vars.get("chat_history", [])
         
-        source_docs = result.get("source_documents", [])
+        # Invoke the chain with input and chat_history
+        result = qa.invoke({
+            "input": request.question,
+            "chat_history": chat_history
+        })
+        
+        answer = result.get("answer", "I couldn't find an answer to that question.")
+        context_docs = result.get("context", [])  # List[Document]
+        
+        # Summarize sources
         sources_used = {}
-        for doc in source_docs:
-            source = doc.metadata.get("source", "unknown")
-            sources_used[source] = sources_used.get(source, 0) + 1
+        for doc in context_docs:
+            src = (doc.metadata or {}).get("source", "unknown")
+            sources_used[src] = sources_used.get(src, 0) + 1
         
         logger.info("Q: %s", request.question)
         logger.info("A: %s", answer)
         logger.info("Sources used: %s", sources_used)
         
-        memory.save_context({"question": request.question}, {"answer": answer})
+        # Save to memory
+        memory.save_context({"input": request.question}, {"answer": answer})
+        
         return JSONResponse({
             "question": request.question,
             "answer": answer,
@@ -252,5 +286,5 @@ async def download_file(filename: str):
 # Process documents on startup
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Starting document processing at %s", "08:45 PM EAT, Friday, August 22, 2025")
+    logger.info("Starting document processing.")
     process_documents()
