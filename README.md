@@ -4,7 +4,7 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 
 ## Features
 
-- **Conversational AI with Memory**: Provides context-aware responses using `ConversationBufferWindowMemory`.
+- **Conversational AI with Memory**: Provides context-aware responses using `ConversationBufferWindowMemory` along with a **history-aware retriever** to rewrite queries based on past interactions.
 - **Multi-Source RAG**: Retrieves answers from uploaded documents using Retrieval-Augmented Generation (RAG).
 - **Embeddings**: Utilizes `sentence-transformers/all-MiniLM-L6-v2` for high-quality text embeddings.
 - **Modern Web UI**: Features a responsive interface with Tailwind CSS, glassmorphism effects, and Font Awesome icons.
@@ -12,7 +12,10 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 - **In-Memory FAISS**: Stores embeddings in memory for simplicity (data is lost on server restart).
 - **File Management**: Supports file uploads and downloads via API endpoints.
 - **No Hallucination**: Answers are based solely on document context; returns "I lack sufficient information to answer that" otherwise.
-
+## Screenshots
+  ![Chat Interface](https://raw.githubusercontent.com/shimels1/multi_source_rag_chatbot/refs/heads/main/screenshot/1.png)
+  ![Upload Files](https://raw.githubusercontent.com/shimels1/multi_source_rag_chatbot/refs/heads/main/screenshot/2.png)
+  ![File List](https://raw.githubusercontent.com/shimels1/multi_source_rag_chatbot/refs/heads/main/screenshot/3.png)
 ## Setup
 
 1. **Clone the Repository**:
@@ -32,7 +35,7 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 
 3. **Environment Variables**:
    Create a `.env` file in the root directory with the following:
-   ```
+   ```env
    GROQ_API_KEY=<your_groq_api_key>
    LANGCHAIN_API_KEY=<your_langchain_api_key>
    LANGCHAIN_TRACING_V2=true
@@ -42,7 +45,7 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
    Obtain API keys from [Groq](https://console.groq.com/) and [LangChain](https://smith.langchain.com/).
 
 4. **Prepare Documents**:
-   Place your documents in the `data/` directory. Supported formats include `.txt`, `.pdf`, `.docx`, etc. The server will process these on startup (last updated: 10:16 AM EAT, Saturday, August 23, 2025).
+   Place your documents in the `data/` directory. Supported formats include `.txt`, `.pdf`, `.docx`, etc. The server will process these on startup.
 
 ## Usage
 
@@ -58,7 +61,7 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 3. **Interact with the Chatbot**:
    - Type questions in the chat box and press "Send".
    - The AI responds based on uploaded document context.
-   - Memory tracks recent interactions for context.
+   - Memory tracks recent interactions for context, and the **history-aware retriever** rewrites queries for better answers.
 
 4. **Manage Files**:
    - Use the "Upload" section to add new documents.
@@ -70,6 +73,7 @@ A conversational AI assistant built with FastAPI, LangChain, FAISS, and Groq LLM
 ├── main.py                 # FastAPI backend with document processing and API endpoints
 ├── index.html              # Modern web UI with Tailwind CSS and JavaScript
 ├── data/                   # Directory for uploaded documents
+├── screenshot/             # Folder containing screenshots for README and UI
 ├── requirements.txt        # Python dependencies
 ├── .env                    # Environment variables (not tracked by git)
 └── README.md               # This file
@@ -113,4 +117,3 @@ For questions or support, reach out to Shimels Alem via the GitHub repository: [
 
 If you find this project useful, please give it a ⭐ on [GitHub](https://github.com/shimels1/multi_source_rag_chatbot)!  
 Your support helps others discover the project and keeps development going.
-
